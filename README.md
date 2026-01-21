@@ -15,7 +15,7 @@ Le système repose sur une architecture MQTT distribuée :
 ## 🛠️ Matériel Utilisé
 
 * **Microcontrôleur :** ESP32 DevKit V1.
-* **Capteur :** LM35 (Capteur de température analogique de précision).
+* **Capteur :** LM35 (Capteur de température ).
 * **Serveur :** Raspberry Pi 4 (OS : Raspberry Pi OS).
 * **Réseau :** Wi-Fi Local (LAN).
 
