@@ -4,7 +4,24 @@ Ce projet implémente une station de surveillance de température connectée, ro
 
 ## 📋 Architecture du Projet
 
+graph LR
+    %% Définition des nœuds (Les boîtes)
+    LM35((Capteur LM35))
+    ESP32[Microcontrôleur ESP32]
+    WIFI((Routeur Wi-Fi))
+    RPI[Raspberry Pi 4<br/>Mosquitto + Node-RED]
+    DASH[Interface Dashboard]
 
+    %% Définition des liens (Les flèches)
+    LM35 -- Signal Analogique<br/>(mV) --> ESP32
+    ESP32 -- MQTT Sécurisé (SSL)<br/>Port 8883 --> WIFI
+    WIFI -- Réseau Local --> RPI
+    RPI -- WebSocket --> DASH
+
+    %% Styles (Pour faire joli - Optionnel)
+    style LM35 fill:#f9f,stroke:#333,stroke-width:2px
+    style ESP32 fill:#bbf,stroke:#333,stroke-width:2px
+    style RPI fill:#bfb,stroke:#333,stroke-width:2px
 
 Le système repose sur une architecture MQTT distribuée :
 1.  **Capteur (Edge) :** ESP32 + LM35 (Lecture analogique).
