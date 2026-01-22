@@ -4,6 +4,7 @@ Ce projet implémente une station de surveillance de température connectée, ro
 
 ## 📋 Architecture du Projet
 
+```mermaid
 graph LR
     %% Définition des nœuds (Les boîtes)
     LM35((Capteur LM35))
@@ -22,7 +23,7 @@ graph LR
     style LM35 fill:#f9f,stroke:#333,stroke-width:2px
     style ESP32 fill:#bbf,stroke:#333,stroke-width:2px
     style RPI fill:#bfb,stroke:#333,stroke-width:2px
-
+```
 Le système repose sur une architecture MQTT distribuée :
 1.  **Capteur (Edge) :** ESP32 + LM35 (Lecture analogique).
 2.  **Transport :** Wi-Fi + MQTT via **TLS/SSL (Port 8883)**.
