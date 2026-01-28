@@ -1,57 +1,65 @@
-# Station Météo IoT Sécurisée <br> (LM35 + ESP32 + Raspberry Pi)
+## Dépannage et Solutions (Troubleshooting)
 
-L'objectif de se projet  est de mettre en place une station de surveillance de température connectée, robuste et sécurisée. L'objectif est de récupérer les données d'un capteurs de température, de les transmettre de manière chiffrée (TLS/SSL) à un serveur central, de les visualiser en temps réel et également de les stocker dans une base de données. <br>
+Si le système ne fonctionne pas comme prévu, voici une liste de contrôle pour diagnostiquer et résoudre les problèmes les plus fréquents.
 
-L'objectif premier est d'acheminer les mesures de températures jusqu'à la carte Raspberry Pi. Pour ce faire, la température est lu avec le LM35 sur l'ESP32. 
-L’utilisation de la carte ESP32 en amont du Raspberry Pi s'explique par la capacité de l'ESP32 à interagir avec des capteurs analogiques, contrairement à le Raspberry Pi. L'ESP32 permet également de convertir un signal analogique en un signal numérique pour transmettre l'information à le Raspberry Pi. 
-Pour finir, l'ESP32 offre une consommation énergétique très faible grâce à ses modes de veille, ce qui le rend adapté aux mesures périodiques. 
+### A. Problèmes de Connexion (Réseau)
 
-## Architecture du projet
+**Symptôme :** L'ESP32 affiche "Tentative de connexion MQTT..." indéfiniment ou Node-RED reste sur "Connecting".
 
-```mermaid
-graph LR
-    %% Définition des nœuds 
-    LM35[Capteur LM35]
-    ESP32[Microcontrôleur ESP32]
-    WIFI((Routeur Wi-Fi))
-    RPI[Raspberry Pi 4<br/>Mosquitto + Node-RED]
-    DASH[Interface Dashboard]
-    SQL[Base de données SQLite]
+* **Vérifier l'Adresse IP du Raspberry Pi :**
+    * L'adresse IP du Pi peut changer s'il n'est pas en IP fixe.
+    * **Action :** Vérifiez que cette IP correspond exactement à la variable `mqtt_server` dans le code Arduino (`192.168.1.XXX`) et dans la configuration du nœud MQTT de Node-RED.
+* **Vérifier le Réseau WiFi :**
+    * L'ESP32 et le Raspberry Pi doivent être sur le même réseau (même Box ou même Routeur).
+    * *Attention :* L'ESP32 ne supporte que le WiFi **2.4 GHz** (pas le 5 GHz).
+* **Vérifier le Pare-feu (Firewall) :**
+    * Le port 1883 doit être ouvert sur le Raspberry Pi.
+    * **Commande :** `sudo ufw allow 1883`
 
-    %% Définition des liens 
-    LM35 -- Signal Analogique<br/>(mV) --> ESP32
-    ESP32 -- MQTT Sécurisé (SSL)<br/>Port 8883 --> WIFI
-    WIFI -- Réseau Local --> RPI
-    RPI -- WebSocket --> DASH
-    RPI --> SQL
+### B. Problèmes MQTT (Broker & Topics)
 
-    %% Styles 
-    style LM35 fill:#f9f,stroke:#333,stroke-width:2px
-    style ESP32 fill:#bbf,stroke:#333,stroke-width:2px
-    style RPI fill:#bfb,stroke:#333,stroke-width:2px
-```
-Le système repose sur une architecture MQTT distribuée :
-1.  **Capteur :** capteur LM35 + microcontrôleur ESP32 (Lecture analogique).
-2.  **Transport :** MQTT via TLS/SSL (Port 8883) + Wi-Fi.
-3.  **Broker :** Mosquitto tournant sur la Raspberry Pi 4.
-4.  **Visualisation :** Node-RED (Dashboard).
-5.  **Stockage :** base de données SQLite 
+**Symptôme :** L'ESP32 est "Connecté", mais aucune donnée ne bouge sur le Dashboard Node-RED.
 
-## Matériel utilisé
+* **Erreur de Topic :**
+    * Le topic est **sensible à la casse** (majuscules/minuscules).
+    * *Exemple :* Si l'ESP32 publie sur `Station/Temp` et que Node-RED écoute `station/temp`, cela ne marchera pas.
+    * **Action :** Copiez-collez strictement le même nom de topic des deux côtés.
+* **Erreur d'Identifiants (Connection Refused) :**
+    * Si vous avez activé un mot de passe dans Mosquitto.
+    * **Action :** Vérifiez que le `mqtt_user` et `mqtt_pass` dans le code Arduino correspondent à ceux créés sur le Pi.
+    * **Action :** Vérifiez l'onglet "Security" dans le nœud MQTT de Node-RED.
+* **Mosquitto est-il lancé ?**
+    * **Commande :** `sudo systemctl status mosquitto`
+    * Il doit indiquer `Active: active (running)`. Sinon, faites `sudo systemctl start mosquitto`.
 
-* **Capteur :** LM35 (Capteur de température).
-* **Microcontrôleur :** ESP32.
-* **Serveur :** Raspberry Pi 4 (OS : Raspberry Pi OS).
-* **Réseau :** Wi-Fi Local (LAN).
+### C. Problèmes d'Affichage (Node-RED)
 
-## Sécurité & fiabilité 
+**Symptôme :** Les jauges restent à 0 ou Node-RED affiche des erreurs dans le panneau de debug.
 
-Pour garantir la sécurité des informations qui transitent au cours de ce projet, différents protocoles de sécurité des informations sont mis en œuvres :
+* **Erreur "Split is not a function" :**
+    * Node-RED reçoit parfois les données sous forme brute (Buffer) au lieu de Texte.
+    * **Solution :** Dans le nœud *Function*, ajoutez `.toString()` :
+        ```javascript
+        var values = msg.payload.toString().split(',');
+        ```
+* **Valeurs incohérentes (ex: Température à 500°C) :**
+    * Vérifiez le câblage du capteur sur la bonne broche (GPIO 32 vs 35).
+    * Vérifiez la formule de conversion dans le code Arduino (Attention aux parenthèses et aux décimales).
 
-* **Chiffrement SSL/TLS :** Toutes les communications entre l'ESP32 et le Raspberry Pi sont chiffrées. Les données ne circulent jamais en clair.
-* **Autorité de Certification (CA) Privée :** Création d'une infrastructure à clé publique (PKI) locale avec OpenSSL.
-* **Authentification :** Connexion MQTT protégée par un identifiant et un mot de passe.
-* **Persistance (Retain) :** Le broker garde en mémoire la dernière mesure. En cas de redémarrage de l'interface, la donnée s'affiche immédiatement.
-* **Reprise Automatique (Recovery) :** L'ESP32 gère automatiquement les déconnexions Wi-Fi ou MQTT.
+### D. Outils de Diagnostic Rapide
 
----
+Pour savoir d'où vient le problème, isolez chaque partie :
+
+1.  **Vérifier la sortie de l'ESP32 :**
+    * Ouvrez le **Moniteur Série** dans l'IDE Arduino (Baudrate **115200**).
+    * Voyez-vous "WiFi Connecté" et "Envoi température" ?
+2.  **Écouter le Broker (L'arbitre) :**
+    * Sur le Raspberry Pi, lancez : `mosquitto_sub -h localhost -t "#" -v`
+    * (Le `#` signifie "écouter TOUS les topics").
+    * Si vous voyez les messages arriver ici, le problème est dans Node-RED. Si rien n'arrive, le problème est côté ESP32 ou Réseau.
+
+### E. Téléversement du programme Arduino
+
+Il se peut qu'en voulant télécharger le programme Arduino sur l'ESP32, une erreur type "uploading error: exit status 2"
+Il faut alors aller dans le menu "Outils" sur Arduino et changer l"Upload Speed" pour mettre "115200".
+    
