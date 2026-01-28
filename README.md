@@ -22,7 +22,7 @@ graph LR
     LM35 -- Signal Analogique<br/>(mV) --> ESP32
     ESP32 -- MQTT Sécurisé (SSL)<br/>Port 8883 --> WIFI
     WIFI -- Réseau Local --> RPI
-    RPI -- WebSocket --> DASH
+    RPI --> DASH
     RPI --> SQL
 
     %% Styles 
