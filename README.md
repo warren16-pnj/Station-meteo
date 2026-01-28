@@ -34,7 +34,7 @@ Le capteur de température analogique LM35 est relié à l'ESP32.
  ![Capteur LM35](images/LM35.png)
 
 #### D. Programme Principal (Acquisition & Transmission)
-Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT.
+Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT. Il est également possible de le télécharger dans les fichiers, il se nomme `final.ino`
 
 > **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
 
