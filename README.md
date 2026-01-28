@@ -4,7 +4,7 @@
 
 **Attention : Tous les éléments du projet doivent être connectés au même réseau wifi.**
 
-#### A. Installation et Configuration de l'IDE Arduino
+#### A. Installation et configuration de l'IDE Arduino
 Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique dans l'IDE Arduino.
 
 1.  Ouvrir Arduino IDE.
@@ -21,7 +21,7 @@ Le projet nécessite des bibliothèques spécifiques dont une pour le protocole 
 10.  Une fois installés, sélectionner la carte : Outils > Type de carte > Adafruit Feather ESP32 V2.
 
 
-#### B. Câblage Matériel (Capteur LM35)
+#### B. Câblage matériel (Capteur LM35)
 Le capteur de température analogique LM35 est relié à l'ESP32.
 
 * Pin 1 (+Vs) : Relié au 5V (USB) ou 3.3V de l'ESP32.
@@ -32,14 +32,14 @@ Le capteur de température analogique LM35 est relié à l'ESP32.
 ![Microcontrôleur ESP32](images/ESP32.png)
 ![Capteur LM35](images/LM35.png)
 
-#### C. Programme Principal (Acquisition & Transmission)
+#### C. Programme principal (Acquisition & Transmission)
 Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT. Il est également disponible dans les fichiers de ce projet GitHub (`final.ino`)
 
 > **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L84 dans la commande "client.publish" avant de téléverser.
 
 
 <details>
-<summary>🔻 Cliquez ici pour voir le code Arduino </summary>
+<summary> Cliquez ici pour voir le code Arduino </summary>
 
 ```cpp
 #include <WiFi.h>
@@ -172,7 +172,7 @@ Supprimez le contenu existant et remplacez-le par la configuration suivante :
 
 Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
 
-#### E. Redémarrage du Service
+#### E. Redémarrage du service
 Pour que la nouvelle configuration soit prise en compte, redémarrez Mosquitto :
 ```bash
 sudo systemctl restart mosquitto
@@ -309,7 +309,7 @@ Si vous souhaitez utiliser Node-RED sur votre pc :
    Ouvrir un terminale de commande et copier la commande suivante :
    
 <details>
-<summary>🔻 Cliquez ici pour voir la commande d'installation </summary>  
+<summary> Cliquez ici pour voir la commande d'installation </summary>  
     
 # Download and install nvm:
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
@@ -337,7 +337,7 @@ Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans Menu 
 Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importez-le dans Node-RED (Menu > Import).
 
 <details>
-<summary>🔻 Cliquez ici pour voir le Code JSON du Flux Node-RED</summary>
+<summary> Cliquez ici pour voir le Code JSON du Flux Node-RED</summary>
 
 ```json
 [
@@ -709,27 +709,25 @@ Ce projet utilise le système de Webhooks de Discord. C'est une méthode simple 
 Maintenant que vous avez votre "adresse de livraison" (l'URL), il faut la donner à Node-RED.
 
 1.  Ouvrez l'interface de Node-RED (`http://<IP_RASPBERRY>:1880`).
-2.  Localisez le nœud de type `http request` (souvent de couleur jaune) nommé **"Envoi Discord"**.
+2.  Localisez le nœud de type `http request` nommé "Envoi Discord".
 3.  Double-cliquez dessus pour l'ouvrir.
-4.  Dans le champ **URL**, effacez le contenu existant.
-5.  **Collez** l'URL du Webhook que vous avez copiée à l'étape 1.
-6.  Vérifiez que la **Method** est bien réglée sur `POST`.
-7.  Cliquez sur **Done** (Terminé).
-8.  N'oubliez pas de cliquer sur le bouton rouge **Deploy** en haut à droite pour valider les changements.
+4.  Dans le champ URL, effacez le contenu existant.
+5.  Collez l'URL du Webhook que vous avez copiée à l'étape 1.
+6.  Vérifiez que la Method est bien réglée sur `POST`.
+7.  Cliquez sur Done.
+8.  N'oubliez pas de cliquer sur le bouton rouge Deploy en haut à droite pour valider les changements.
 
-### Étape 3 : Tester l'Alerte
+#### C. Tester l'alerte
 
-Pour vérifier que tout fonctionne sans attendre une canicule :
+Pour vérifier que tout fonctionne :
 
-1.  Ouvrez votre **Dashboard** (`http://<IP_RASPBERRY>:1880/ui`).
-2.  Repérez la température actuelle affichée par la jauge (ex: 22°C).
-3.  Descendez le **Curseur Seuil** en dessous de cette valeur (ex: réglez-le à 15°C).
-4.  Attendez la prochaine remontée de données de l'ESP32 (environ 10 secondes).
+1.  Ouvrez votre Dashboard (`http://<IP_RASPBERRY>:1880/ui`).
+2.  Repérez la température actuelle affichée par la jauge.
+3.  Descendez le Curseur Seuil en dessous de cette valeur (ex: réglez-le à 15°C).
+4.  Attendez la prochaine remontée de données de l'ESP32 (environ 20 secondes).
 5.  **Résultat :**
-    * La LED de l'ESP32 doit passer au **Rouge**.
-    * Vous devez recevoir instantanément une notification sur **Discord** avec le message d'alerte.
-
----
+    * La LED de l'ESP32 doit passer au Rouge.
+    * Vous devez recevoir instantanément une notification sur Discord avec le message d'alerte.
 
 ## Dépannage et Solutions (Troubleshooting)
 
@@ -791,18 +789,4 @@ Pour savoir d'où vient le problème, isolez chaque partie :
     * Sur le Raspberry Pi, lancez : `mosquitto_sub -h localhost -t "#" -v`
     * (Le `#` signifie "écouter TOUS les topics").
     * Si vous voyez les messages arriver ici, le problème est dans Node-RED. Si rien n'arrive, le problème est côté ESP32 ou Réseau.
-
-
-
-
-
-### 4. Sécurisation et fiabilité 
-
-
-
-### 6. Documentation et présentation 
-
-## Configuration de l'ESP32
-
-
-
+    
