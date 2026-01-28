@@ -4,7 +4,7 @@
 
 **Attention : Tous les éléments du projet doivent être connectés au même réseau wifi.**
 
-### 1. Installation et Configuration de l'IDE Arduino
+#### A. Installation et Configuration de l'IDE Arduino
 Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique dans l'IDE Arduino.
 
 1.  Ouvrir Arduino IDE.
