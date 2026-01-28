@@ -15,13 +15,13 @@ Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique d
 5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer.
 6.  Une fois installé, sélectionner la carte : Outils > Type de carte > ESP32 Dev Module.
 
-### 2. Installation des Bibliothèques
+#### B. Installation des Bibliothèques
 Le projet nécessite une bibliothèque spécifique pour le protocole MQTT.
 
 1.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
 2.  Chercher et installer **PubSubClient** (par Nick O'Leary).
 
-### 3. Câblage Matériel (Capteur LM35)
+#### C. Câblage Matériel (Capteur LM35)
 Le capteur de température analogique LM35 est relié à l'ESP32.
 
 * Pin 1 (+Vs) : Relié au 5V (USB) ou 3.3V de l'ESP32.
@@ -31,7 +31,7 @@ Le capteur de température analogique LM35 est relié à l'ESP32.
  ![Microcontrôleur ESP32](images/ESP32.png)
  ![Capteur LM35](images/LM35.png)
 
-### 4. Programme Principal (Acquisition & Transmission)
+#### D. Programme Principal (Acquisition & Transmission)
 Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT.
 
 > **Note :** Penser à modifier les constantes `ssid`, `wifi_password`, `mqtt_server` (IP du Raspberry), `mqtt_user` et `mqtt_pass` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
@@ -121,15 +121,15 @@ Le Raspberry Pi héberge le Broker Mosquitto. C'est le serveur central qui va re
 
 *Pré-requis : Mosquitto est supposé déjà installé sur le Raspberry Pi.*
 
-### 1. Édition du fichier de configuration
+#### E. Édition du fichier de configuration
 Par défaut, Mosquitto est sécurisé et bloque les connexions externes. Nous devons le configurer pour accepter les messages venant de l'ESP32 via le WiFi.
 
-1.  Ouvrez le fichier de configuration principal :
+Ouvrez le fichier de configuration principal :
     ```bash
     sudo nano /etc/mosquitto/mosquitto.conf
     ```
 
-2.  Supprimez le contenu existant et remplacez-le par la configuration suivante :
+Supprimez le contenu existant et remplacez-le par la configuration suivante :
 
     ```conf
     # --- CONFIGURATION IOT ---
@@ -153,15 +153,15 @@ Par défaut, Mosquitto est sécurisé et bloque les connexions externes. Nous de
 
 </details>
 
-3.  Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
+Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
 
-### 2. Redémarrage du Service
+#### F. Redémarrage du Service
 Pour que la nouvelle configuration soit prise en compte, redémarrez Mosquitto :
 ```bash
 sudo systemctl restart mosquitto
 ```
 
-### 3. Créer un topic et commandes de test
+#### G. Créer un topic et commandes de test
 * Il faut maintenant créer un nom d'utilisateur et un mot de passe. Il faut que ces informations soient les mêmes que celles renseignées dans le script Arduino.
 ```bash
 sudo mosquitto_passwd -c /etc/mosquitto/pwfile ton_username
