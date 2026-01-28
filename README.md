@@ -12,7 +12,7 @@ Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique d
 3.  Dans la case "URL de gestionnaire de cartes supplémentaires", ajouter l'URL suivante:
     ```https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json```
 4.  Aller dans Outils > Type de carte > Gestionnaire de carte.
-5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer.
+5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer. <br>
 Le projet nécessite des bibliothèques spécifiques dont une pour le protocole MQTT.
 6.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
 7.  Chercher et installer "Adafruit NeoPixel" (par Adafruit).
