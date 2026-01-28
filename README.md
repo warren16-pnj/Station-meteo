@@ -44,14 +44,5 @@ Le système repose sur une architecture MQTT distribuée :
 * **Serveur :** Raspberry Pi 4 (OS : Raspberry Pi OS).
 * **Réseau :** Wi-Fi Local (LAN).
 
-## Sécurité & fiabilité 
-
-Pour garantir la sécurité des informations qui transitent au cours de ce projet, différents protocoles de sécurité des informations sont mis en œuvres :
-
-* **Chiffrement SSL/TLS :** Toutes les communications entre l'ESP32 et le Raspberry Pi sont chiffrées. Les données ne circulent jamais en clair.
-* **Autorité de Certification (CA) Privée :** Création d'une infrastructure à clé publique (PKI) locale avec OpenSSL.
-* **Authentification :** Connexion MQTT protégée par un identifiant et un mot de passe.
-* **Persistance (Retain) :** Le broker garde en mémoire la dernière mesure. En cas de redémarrage de l'interface, la donnée s'affiche immédiatement.
-* **Reprise Automatique (Recovery) :** L'ESP32 gère automatiquement les déconnexions Wi-Fi ou MQTT.
 
 ---
