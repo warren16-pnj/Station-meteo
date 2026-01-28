@@ -13,30 +13,29 @@ Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique d
     ```https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json```
 4.  Aller dans Outils > Type de carte > Gestionnaire de carte.
 5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer.
-6.  Chercher "Adafruit NeoPixel" (par Adafruit) et cliquer sur Installer
-7.  Chercher "Adafruit DMA neopixel library" (par Adafruit) et cliquer sur Installer
-8.  Une fois installé, sélectionner la carte : Outils > Type de carte > Adafruit Feather ESP32 V2.
+Le projet nécessite des bibliothèques spécifiques dont une pour le protocole MQTT.
+6.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
+7.  Chercher et installer "Adafruit NeoPixel" (par Adafruit).
+8.  Chercher et installer "Adafruit DMA neopixel library" (par Adafruit).
+9.  Chercher et installer "PubSubClient" (par Nick O'Leary).
+10.  Une fois installés, sélectionner la carte : Outils > Type de carte > Adafruit Feather ESP32 V2.
 
-#### B. Installation des Bibliothèques
-Le projet nécessite une bibliothèque spécifique pour le protocole MQTT.
 
-1.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
-2.  Chercher et installer **PubSubClient** (par Nick O'Leary).
-
-#### C. Câblage Matériel (Capteur LM35)
+#### B. Câblage Matériel (Capteur LM35)
 Le capteur de température analogique LM35 est relié à l'ESP32.
 
 * Pin 1 (+Vs) : Relié au 5V (USB) ou 3.3V de l'ESP32.
     * *Attention : Une alimentation en 3.3V peut fausser la mesure (minimum théorique 4V).*
 * Pin 2 (Vout) : Relié à une entrée analogique, ici la borne 33.
 * Pin 3 (GND) : Relié au GND de l'ESP32.
- ![Microcontrôleur ESP32](images/ESP32.png)
- ![Capteur LM35](images/LM35.png)
 
-#### D. Programme Principal (Acquisition & Transmission)
-Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT. Il est également possible de le télécharger dans les fichiers, il se nomme `final.ino`
+![Microcontrôleur ESP32](images/ESP32.png)
+![Capteur LM35](images/LM35.png)
 
-> **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
+#### C. Programme Principal (Acquisition & Transmission)
+Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT. Il est également disponible dans les fichiers de ce projet GitHub (`final.ino`)
+
+> **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L84 dans la commande "client.publish" avant de téléverser.
 
 
 <details>
@@ -47,8 +46,8 @@ Le code suivant permet de se connecter au Wifi, de lire la température et de l'
 #include <PubSubClient.h>
 
 // --- CONFIGURATION ---
-const char* ssid = "ton_wifi";
-const char* password = "ton_mdp_wifi";
+const char* ssid = "ton_wifi"; //À remplacer
+const char* password = "ton_mdp_wifi"; //À remplacer
 const char* mqtt_server = "192.168.1.XXX"; //remplacer XXX par l'adress ip de ton Raspberry
 const int mqtt_port = 1883;
 
@@ -88,7 +87,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void reconnect() {
   while (!client.connected()) {
-    if (client.connect("ESP32_Ronan", "ton_username", "ton_password")) {
+    if (client.connect("ESP32_Ronan", "ton_username", "ton_password")) { //À remplacer
       // S'abonner aux ordres de Node-RED
       client.subscribe("station/led");
       client.subscribe("station/seuil"); 
@@ -110,7 +109,7 @@ void loop() {
   client.loop();
 
   unsigned long now = millis();
-  if (now - lastMsg > 1000) {
+  if (now - lastMsg > 20000) { //Périodicité de la mesure en millisecondes
     lastMsg = now;
 
     // 1. Lectures LM35 et Batterie 
@@ -126,7 +125,7 @@ void loop() {
 
     // 3. Envoi des données vers Node-RED
     String payload = String(temp) + "," + String(vbat);
-    client.publish("ton_topic", payload.c_str());
+    client.publish("ton_topic", payload.c_str()); //À remplacer
   }
 }
 ```
@@ -141,7 +140,7 @@ Le Raspberry Pi héberge le Broker Mosquitto. C'est le serveur central qui va re
 
 *Pré-requis : Mosquitto est supposé déjà installé sur le Raspberry Pi.*
 
-#### E. Édition du fichier de configuration
+#### D. Édition du fichier de configuration
 Par défaut, Mosquitto est sécurisé et bloque les connexions externes. Nous devons le configurer pour accepter les messages venant de l'ESP32 via le WiFi.
 
 Ouvrez le fichier de configuration principal :
@@ -173,20 +172,20 @@ Supprimez le contenu existant et remplacez-le par la configuration suivante :
 
 Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
 
-#### F. Redémarrage du Service
+#### E. Redémarrage du Service
 Pour que la nouvelle configuration soit prise en compte, redémarrez Mosquitto :
 ```bash
 sudo systemctl restart mosquitto
 ```
 
-#### G. Créer un topic et commandes de test
+#### F. Créer un topic et commandes de test
 * Il faut maintenant créer un nom d'utilisateur et un mot de passe. Il faut que ces informations soient les mêmes que celles renseignées dans le script Arduino.
 ```bash
 sudo mosquitto_passwd -c /etc/mosquitto/pwfile ton_username
 ``` 
-Il faut ensuite écrire un mot de passe et le valider. 
+Il faut écrire un mot de passe et le valider. 
 
-* Cette commande permet de s'abonner à un topic :
+* Ensuite, cette commande permet de s'abonner à un topic :
 ```bash
 sudo mosquitto_sub -h localhost -t ton_topic -u ton_username -P ton_password
 ```
@@ -224,7 +223,7 @@ CREATE TABLE mesures (
 );
 ```
 
-Il faut ensuite créer le script Python permettant d'enregistrer directement les valeurs de température :
+Il faut ensuite sortir de la console sqlite (.quit) et créer le script Python permettant d'enregistrer directement les valeurs de température :
 ```bash
 nano mqtt_to_sqlite.py
 ```
@@ -289,13 +288,11 @@ Pour récupérer les données et faciliter leur exploitation, on convertit la ba
 sqlite3 -header -csv temperature.db "SELECT * FROM mesures;" > mesures_export.csv
 ```
 
----
-
-## Interface et Logique (Node-RED)
+### 3. Affichage et interface utilisateur
 
 Node-RED est utilisé pour l'interface graphique (Dashboard) et la logique d'alerte. Il s'exécute sur le Raspberry Pi et communique avec l'ESP32 via le protocole MQTT.
 
-### 1. Installation des dépendances
+#### A. Installation 
 Si ce n'est pas déjà fait sur le Raspberry Pi :
 1.  **Installer Node-RED :**
     `bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)`
@@ -309,14 +306,35 @@ Si vous souhaitez utiliser Node-RED sur votre pc :
 2. **Installer Node-RED :**
    Cliquer sur `Windows installer (.msi)` ou `macOS installer (.pkg)`
 3. **Lancer Node-RED :**
-   Ouvrir un terminale de commande et taper :
-   `node-red` puis cliquer sur le lien et une page web avec node red s'ouvre
+   Ouvrir un terminale de commande et copier la commande suivante :
    
-Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans **Menu > Manage Palette > Install** et installez :
+<details>
+<summary>🔻 Cliquez ici pour voir la commande d'installation </summary>  
+    
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 24
+
+# Verify the Node.js version:
+node -v # Should print "v24.13.0".
+
+# Verify npm version:
+npm -v # Should print "11.6.2".
+
+</details>
+
+Ensuite, il suffit d'écrire `node-red` dans le terminal puis de cliquer sur le lien et une page web avec Node-RED s'ouvre.
+   
+Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans Menu (3 barres) > Manage Palette > Install et installez :
 * `node-red-dashboard`
 
-### 2. Importation du Flux
-Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importez-le dans Node-RED (**Menu > Import**).
+#### B. Importation du Flux
+Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importez-le dans Node-RED (Menu > Import).
 
 <details>
 <summary>🔻 Cliquez ici pour voir le Code JSON du Flux Node-RED</summary>
@@ -661,34 +679,32 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
 
 </details>
 
-Pour ouvrir le dashboard il suffit de taper `http:<ADRESSE_IP_DU_RASPBERRY>:1880/ui`
+Pour ouvrir le dashboard il suffit d'ouvrir une nouvelle page dans son navigateur : `http:<ADRESSE_IP_DU_RASPBERRY>:1880/ui`
 
----
+### 5. Alertes et automatisation
 
-## Configuration des Alertes Discord
+Ce projet utilise le système de Webhooks de Discord. C'est une méthode simple qui permet au Raspberry Pi d'envoyer des messages dans un salon de discussion sans avoir besoin de créer un "Bot" complexe.
 
-Ce projet utilise le système de **Webhooks** de Discord. C'est une méthode simple qui permet au Raspberry Pi d'envoyer des messages dans un salon de discussion sans avoir besoin de créer un "Bot" complexe.
-
-### Étape 1 : Création du Webhook (Sur Discord)
+#### A. Création du Webhook (Sur Discord)
 
 1.  **Choisir le salon :**
     * Allez sur votre serveur Discord.
     * Repérez le salon textuel où vous voulez recevoir les alertes (exemple : `#général` ou créez un salon `#alertes-iot`).
-    * Cliquez sur la roue dentée **⚙️ (Modifier le salon)** à côté du nom du salon.
+    * Cliquez sur la roue dentée (Modifier le salon) à côté du nom du salon.
 
 2.  **Accéder aux Intégrations :**
-    * Dans le menu de gauche, cliquez sur **Intégrations**.
-    * Cliquez sur le bouton **Webhooks**.
+    * Dans le menu de gauche, cliquez sur Intégrations.
+    * Cliquez sur le bouton Webhooks.
 
 3.  **Générer l'URL :**
-    * Cliquez sur **Nouveau Webhook**.
+    * Cliquez sur Nouveau Webhook.
     * Donnez-lui un nom (ex: *Capteur IUT*).
     * *(Optionnel)* Changez son avatar.
-    * ⚠️ **IMPORTANT :** Cliquez sur le bouton **Copier l'URL du Webhook**.
+    * **IMPORTANT :** Cliquez sur le bouton Copier l'URL du Webhook.
     * *Gardez cette URL secrète, elle ressemble à : `https://discord.com/api/webhooks/12345.../AbCdEf...`*
-    * Cliquez sur **Enregistrer**.
+    * Cliquez sur Enregistrer.
 
-### Étape 2 : Connexion avec Node-RED
+#### B. Connexion avec Node-RED
 
 Maintenant que vous avez votre "adresse de livraison" (l'URL), il faut la donner à Node-RED.
 
@@ -778,11 +794,11 @@ Pour savoir d'où vient le problème, isolez chaque partie :
 
 
 
-### 3. Affichage et interface utilisateur
+
 
 ### 4. Sécurisation et fiabilité 
 
-### 5. Alertes et automatisation
+
 
 ### 6. Documentation et présentation 
 
