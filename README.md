@@ -4,7 +4,7 @@
 
 **Attention : Tous les éléments du projet doivent être connectés au même réseau wifi.**
 
-#### A. Installation et Configuration de l'IDE Arduino
+#### A. Installation et configuration de l'IDE Arduino
 Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique dans l'IDE Arduino.
 
 1.  Ouvrir Arduino IDE.
@@ -13,115 +13,134 @@ Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique d
     ```https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json```
 4.  Aller dans Outils > Type de carte > Gestionnaire de carte.
 5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer.
-6.  Une fois installé, sélectionner la carte : Outils > Type de carte > ESP32 Dev Module.
+Le projet nécessite des bibliothèques spécifiques dont une pour le protocole MQTT.
+6.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
+7.  Chercher et installer "Adafruit NeoPixel" (par Adafruit).
+8.  Chercher et installer "Adafruit DMA neopixel library" (par Adafruit).
+9.  Chercher et installer "PubSubClient" (par Nick O'Leary).
+10.  Une fois installés, sélectionner la carte : Outils > Type de carte > Adafruit Feather ESP32 V2.
 
-#### B. Installation des Bibliothèques
-Le projet nécessite une bibliothèque spécifique pour le protocole MQTT.
 
-1.  Aller dans Croquis > Inclure une bibliothèque > Gérer les bibliothèques.
-2.  Chercher et installer **PubSubClient** (par Nick O'Leary).
-
-#### C. Câblage Matériel (Capteur LM35)
+#### B. Câblage matériel (Capteur LM35)
 Le capteur de température analogique LM35 est relié à l'ESP32.
 
 * Pin 1 (+Vs) : Relié au 5V (USB) ou 3.3V de l'ESP32.
     * *Attention : Une alimentation en 3.3V peut fausser la mesure (minimum théorique 4V).*
 * Pin 2 (Vout) : Relié à une entrée analogique, ici la borne 33.
 * Pin 3 (GND) : Relié au GND de l'ESP32.
- ![Microcontrôleur ESP32](images/ESP32.png)
- ![Capteur LM35](images/LM35.png)
 
-#### D. Programme Principal (Acquisition & Transmission)
-Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT.
+![Microcontrôleur ESP32](images/ESP32.png)
+![Capteur LM35](images/LM35.png)
 
-> **Note :** Penser à modifier les constantes `ssid`, `wifi_password`, `mqtt_server` (IP du Raspberry), `mqtt_user` et `mqtt_pass` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
+#### C. Programme principal (Acquisition & Transmission)
+Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT. Il est également disponible dans les fichiers de ce projet GitHub (`final.ino`)
+
+> **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L84 dans la commande "client.publish" avant de téléverser.
 
 
 <details>
-<summary>🔻 Cliquez ici pour voir le code Arduino </summary>
+<summary> Cliquez ici pour voir le code Arduino </summary>
 
 ```cpp
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-// --- CONFIGURATION DU RÉSEAU ---
-const char* ssid = "VOTRE_SSID_WIFI";
-const char* wifi_password = "VOTRE_MOT_DE_PASSE";
+// --- CONFIGURATION ---
+const char* ssid = "ton_wifi"; //À remplacer
+const char* password = "ton_mdp_wifi"; //À remplacer
+const char* mqtt_server = "192.168.1.XXX"; //remplacer XXX par l'adress ip de ton Raspberry
+const int mqtt_port = 1883;
 
-// --- CONFIGURATION MQTT ---
-const char* mqtt_server = "192.168.1.XXX";    // IP du Raspberry Pi 
-const int mqtt_port = 1883;                   // Port standard 
-const char* mqtt_user = "warren2";            // User défini sur le Pi 
-const char* mqtt_pass = "warren";             // Password défini sur le Pi 
+// --- VARIABLES GLOBALES ---
+float seuilTemperature = 0.0; // Valeur par défaut
+const int sensorPin = 33;      // Pin du capteur LM35
+#define VBATPIN 35             // Pin batterie 
+#define RGB_BRIGHTNESS 64 
 
-// --- PINS ---
-const int sensorPin = 32;// Entrée analogique du LM35
 WiFiClient espClient;
 PubSubClient client(espClient);
+unsigned long lastMsg = 0;
 
 void setup_wifi() {
-  delay(10);
-  Serial.println();
-  Serial.print("Connexion au WiFi : ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, wifi_password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  rgbLedWrite(RGB_BUILTIN, 0, 0, RGB_BRIGHTNESS); // Bleu = Connecté
+}
+
+// --- RÉCEPTION DES MESSAGES ---
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) { message += (char)payload[i]; }
+
+  // Cas 1 : Réception du nouveau seuil
+  if (String(topic) == "station/seuil") {
+    seuilTemperature = message.toFloat();
+    Serial.print("Nouveau seuil reçu : ");
+    Serial.println(seuilTemperature);
+    
+    // Petit flash blanc pour confirmer la réception
+    rgbLedWrite(RGB_BUILTIN, 255, 255, 255);
+    delay(100);
+    rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
   }
-  Serial.println("\nWiFi Connecté !");
-  Serial.print("Adresse IP : ");
-  Serial.println(WiFi.localIP());
 }
 
 void reconnect() {
   while (!client.connected()) {
-    Serial.print("Connexion au Broker MQTT...");
-    if (client.connect("ESP32Client", mqtt_user, mqtt_pass)) {
-      Serial.println("Connecté !");
+    if (client.connect("ESP32_Ronan", "ton_username", "ton_password")) { //À remplacer
+      // S'abonner aux ordres de Node-RED
+      client.subscribe("station/led");
+      client.subscribe("station/seuil"); 
     } else {
-      Serial.print("Erreur, rc=");
-      Serial.print(client.state());
       delay(5000);
     }
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   setup_wifi();
-  client.setServer(mqtt_server, mqtt_port); 
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
+  if (!client.connected()) { reconnect(); }
   client.loop();
 
-  // Lecture du capteur LM35
-  int raw = analogRead(sensorPin);// 
-  
-  // Conversion en tension (3.3V référence, 4095 résolution 12-bit)
-  float millivolts = (raw / 4095.0) * 3300.0;// 
-  
-  // Conversion en degrés (10mV = 1°C pour le LM35)
-  float temperature = (millivolts / 10.0);
+  unsigned long now = millis();
+  if (now - lastMsg > 20000) { //Périodicité de la mesure en millisecondes
+    lastMsg = now;
 
-  // Envoi MQTT
-  String payload = String(temperature);
-  client.publish("test_topic", payload.c_str());
+    // 1. Lectures LM35 et Batterie 
+    float temp = ((analogRead(sensorPin) / 4095.0) * 3300.0) / 4.7; // le 4,7 correspond à un coefficient qui permet d'avoir la bonne température
+    float vbat = (analogReadMilliVolts(VBATPIN) * 2.0) / 1000.0;
 
-  delay(10000); // Pause de 10 secondes
+    // 2. Alerte locale avec la LED RGB
+    if (temp > seuilTemperature) {
+      rgbLedWrite(RGB_BUILTIN, RGB_BRIGHTNESS, 0, 0); // ROUGE si dépassement
+    } else {
+      rgbLedWrite(RGB_BUILTIN, 0, RGB_BRIGHTNESS, 0); // VERT si OK
+    }
+
+    // 3. Envoi des données vers Node-RED
+    String payload = String(temp) + "," + String(vbat);
+    client.publish("ton_topic", payload.c_str()); //À remplacer
+  }
 }
 ```
+
+</details>
+
+---
+
 ## Configuration du Broker MQTT (Raspberry Pi)
 
 Le Raspberry Pi héberge le Broker Mosquitto. C'est le serveur central qui va recevoir les mesures de l'ESP32 et les redistribuer à l'interface graphique.
 
 *Pré-requis : Mosquitto est supposé déjà installé sur le Raspberry Pi.*
 
-#### E. Édition du fichier de configuration
+#### D. Édition du fichier de configuration
 Par défaut, Mosquitto est sécurisé et bloque les connexions externes. Nous devons le configurer pour accepter les messages venant de l'ESP32 via le WiFi.
 
 Ouvrez le fichier de configuration principal :
@@ -151,24 +170,22 @@ Supprimez le contenu existant et remplacez-le par la configuration suivante :
     password_file etc/mosquitto/pwfile
     ```
 
-</details>
-
 Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
 
-#### F. Redémarrage du Service
+#### E. Redémarrage du service
 Pour que la nouvelle configuration soit prise en compte, redémarrez Mosquitto :
 ```bash
 sudo systemctl restart mosquitto
 ```
 
-#### G. Créer un topic et commandes de test
+#### F. Créer un topic et commandes de test
 * Il faut maintenant créer un nom d'utilisateur et un mot de passe. Il faut que ces informations soient les mêmes que celles renseignées dans le script Arduino.
 ```bash
 sudo mosquitto_passwd -c /etc/mosquitto/pwfile ton_username
 ``` 
-Il faut ensuite écrire un mot de passe et le valider. 
+Il faut écrire un mot de passe et le valider. 
 
-* Cette commande permet de s'abonner à un topic :
+* Ensuite, cette commande permet de s'abonner à un topic :
 ```bash
 sudo mosquitto_sub -h localhost -t ton_topic -u ton_username -P ton_password
 ```
@@ -206,7 +223,7 @@ CREATE TABLE mesures (
 );
 ```
 
-Il faut ensuite créer le script Python permettant d'enregistrer directement les valeurs de température :
+Il faut ensuite sortir de la console sqlite (.quit) et créer le script Python permettant d'enregistrer directement les valeurs de température :
 ```bash
 nano mqtt_to_sqlite.py
 ```
@@ -271,20 +288,56 @@ Pour récupérer les données et faciliter leur exploitation, on convertit la ba
 sqlite3 -header -csv temperature.db "SELECT * FROM mesures;" > mesures_export.csv
 ```
 
-
-## Interface et Logique (Node-RED)
+### 3. Affichage et interface utilisateur
 
 Node-RED est utilisé pour l'interface graphique (Dashboard) et la logique d'alerte. Il s'exécute sur le Raspberry Pi et communique avec l'ESP32 via le protocole MQTT.
 
-### 1. Installation des dépendances
-Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans **Menu > Manage Palette > Install** et installez :
+#### A. Installation 
+Si ce n'est pas déjà fait sur le Raspberry Pi :
+1.  **Installer Node-RED :**
+    `bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)`
+2.  **Lancer le service :**
+    `sudo systemctl start nodered`
+3.  Cliquer sur le lien pour accéder à une page web avec node-red
+
+Si vous souhaitez utiliser Node-RED sur votre pc : 
+1. **Site web :**
+   `https://nodejs.org/en/download`
+2. **Installer Node-RED :**
+   Cliquer sur `Windows installer (.msi)` ou `macOS installer (.pkg)`
+3. **Lancer Node-RED :**
+   Ouvrir un terminale de commande et copier la commande suivante :
+   
+<details>
+<summary> Cliquez ici pour voir la commande d'installation </summary>  
+    
+# Download and install nvm:
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+
+# in lieu of restarting the shell
+\. "$HOME/.nvm/nvm.sh"
+
+# Download and install Node.js:
+nvm install 24
+
+# Verify the Node.js version:
+node -v # Should print "v24.13.0".
+
+# Verify npm version:
+npm -v # Should print "11.6.2".
+
+</details>
+
+Ensuite, il suffit d'écrire `node-red` dans le terminal puis de cliquer sur le lien et une page web avec Node-RED s'ouvre.
+   
+Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans Menu (3 barres) > Manage Palette > Install et installez :
 * `node-red-dashboard`
 
-### 2. Importation du Flux
-Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importez-le dans Node-RED (**Menu > Import**).
+#### B. Importation du Flux
+Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importez-le dans Node-RED (Menu > Import).
 
 <details>
-<summary>🔻 Cliquez ici pour voir le Code JSON du Flux Node-RED</summary>
+<summary> Cliquez ici pour voir le Code JSON du Flux Node-RED</summary>
 
 ```json
 [
@@ -625,79 +678,53 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
 ```
 
 </details>
-    
-## Dépannage et Solutions (Troubleshooting)
 
-Si le système ne fonctionne pas comme prévu, voici une liste de contrôle pour diagnostiquer et résoudre les problèmes les plus fréquents.
+Pour ouvrir le dashboard il suffit d'ouvrir une nouvelle page dans son navigateur : `http:<ADRESSE_IP_DU_RASPBERRY>:1880/ui`
 
-### 1. Problèmes de Connexion (Réseau)
+### 4. Alertes et automatisation
 
-**Symptôme :** L'ESP32 affiche "Tentative de connexion MQTT..." indéfiniment ou Node-RED reste sur "Connecting".
+Ce projet utilise le système de Webhooks de Discord. C'est une méthode simple qui permet au Raspberry Pi d'envoyer des messages dans un salon de discussion sans avoir besoin de créer un "Bot" complexe.
 
-* **Vérifier l'Adresse IP du Raspberry Pi :**
-    * L'adresse IP du Pi peut changer s'il n'est pas en IP fixe.
-    * **Commande sur le Pi :** `hostname -I`
-    * **Action :** Vérifiez que cette IP correspond exactement à la variable `mqtt_server` dans le code Arduino (`192.168.1.XXX`) et dans la configuration du nœud MQTT de Node-RED.
-* **Vérifier le Réseau WiFi :**
-    * L'ESP32 et le Raspberry Pi doivent être sur le **même réseau** (même Box ou même Routeur).
-    * *Attention :* L'ESP32 ne supporte que le WiFi **2.4 GHz** (pas le 5 GHz).
-* **Vérifier le Pare-feu (Firewall) :**
-    * Le port 1883 doit être ouvert sur le Raspberry Pi.
-    * **Commande :** `sudo ufw allow 1883`
+#### A. Création du Webhook (Sur Discord)
 
-### 2. Problèmes MQTT (Broker & Topics)
+1.  **Choisir le salon :**
+    * Allez sur votre serveur Discord.
+    * Repérez le salon textuel où vous voulez recevoir les alertes (exemple : `#général` ou créez un salon `#alertes-iot`).
+    * Cliquez sur la roue dentée (Modifier le salon) à côté du nom du salon.
 
-**Symptôme :** L'ESP32 est "Connecté", mais aucune donnée ne bouge sur le Dashboard Node-RED.
+2.  **Accéder aux Intégrations :**
+    * Dans le menu de gauche, cliquez sur Intégrations.
+    * Cliquez sur le bouton Webhooks.
 
-* **Erreur de Topic (La plus fréquente !) :**
-    * Le topic est **sensible à la casse** (majuscules/minuscules).
-    * *Exemple :* Si l'ESP32 publie sur `Station/Temp` et que Node-RED écoute `station/temp`, cela ne marchera pas.
-    * **Action :** Copiez-collez strictement le même nom de topic des deux côtés.
-* **Erreur d'Identifiants (Connection Refused) :**
-    * Si vous avez activé un mot de passe dans Mosquitto.
-    * **Action :** Vérifiez que le `mqtt_user` et `mqtt_pass` dans le code Arduino correspondent à ceux créés sur le Pi.
-    * **Action :** Vérifiez l'onglet "Security" dans le nœud MQTT de Node-RED.
-* **Mosquitto est-il lancé ?**
-    * **Commande :** `sudo systemctl status mosquitto`
-    * Il doit indiquer `Active: active (running)`. Sinon, faites `sudo systemctl start mosquitto`.
+3.  **Générer l'URL :**
+    * Cliquez sur Nouveau Webhook.
+    * Donnez-lui un nom (ex: *Capteur IUT*).
+    * *(Optionnel)* Changez son avatar.
+    * **IMPORTANT :** Cliquez sur le bouton Copier l'URL du Webhook.
+    * *Gardez cette URL secrète, elle ressemble à : `https://discord.com/api/webhooks/12345.../AbCdEf...`*
+    * Cliquez sur Enregistrer.
 
-### 3. Problèmes d'Affichage (Node-RED)
+#### B. Connexion avec Node-RED
 
-**Symptôme :** Les jauges restent à 0 ou Node-RED affiche des erreurs dans le panneau de debug.
+Maintenant que vous avez votre "adresse de livraison" (l'URL), il faut la donner à Node-RED.
 
-* **Erreur "Split is not a function" :**
-    * Node-RED reçoit parfois les données sous forme brute (Buffer) au lieu de Texte.
-    * **Solution :** Dans le nœud *Function*, ajoutez `.toString()` :
-        ```javascript
-        var values = msg.payload.toString().split(',');
-        ```
-* **Valeurs incohérentes (ex: Température à 500°C) :**
-    * Vérifiez le câblage du capteur sur la bonne broche (GPIO 32 vs 35).
-    * Vérifiez la formule de conversion dans le code Arduino (Attention aux parenthèses et aux décimales).
+1.  Ouvrez l'interface de Node-RED (`http://<IP_RASPBERRY>:1880`).
+2.  Localisez le nœud de type `http request` nommé "Envoi Discord".
+3.  Double-cliquez dessus pour l'ouvrir.
+4.  Dans le champ URL, effacez le contenu existant.
+5.  Collez l'URL du Webhook que vous avez copiée à l'étape 1.
+6.  Vérifiez que la Method est bien réglée sur `POST`.
+7.  Cliquez sur Done.
+8.  N'oubliez pas de cliquer sur le bouton rouge Deploy en haut à droite pour valider les changements.
 
-### 4. Outils de Diagnostic Rapide
+#### C. Tester l'alerte
 
-Pour savoir d'où vient le problème, isolez chaque partie :
+Pour vérifier que tout fonctionne :
 
-1.  **Vérifier la sortie de l'ESP32 :**
-    * Ouvrez le **Moniteur Série** dans l'IDE Arduino (Baudrate **115200**).
-    * Voyez-vous "WiFi Connecté" et "Envoi température" ?
-2.  **Écouter le Broker (L'arbitre) :**
-    * Sur le Raspberry Pi, lancez : `mosquitto_sub -h localhost -t "#" -v`
-    * (Le `#` signifie "écouter TOUS les topics").
-    * Si vous voyez les messages arriver ici, le problème est dans Node-RED. Si rien n'arrive, le problème est côté ESP32 ou Réseau.
-
-
-
-### 3. Affichage et interface utilisateur
-
-### 4. Sécurisation et fiabilité 
-
-### 5. Alertes et automatisation
-
-### 6. Documentation et présentation 
-
-## Configuration de l'ESP32
-
-
-
+1.  Ouvrez votre Dashboard (`http://<IP_RASPBERRY>:1880/ui`).
+2.  Repérez la température actuelle affichée par la jauge.
+3.  Descendez le Curseur Seuil en dessous de cette valeur (ex: réglez-le à 15°C).
+4.  Attendez la prochaine remontée de données de l'ESP32 (environ 20 secondes).
+5.  **Résultat :**
+    * La LED de l'ESP32 doit passer au Rouge.
+    * Vous devez recevoir instantanément une notification sur Discord avec le message d'alerte.
