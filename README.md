@@ -13,7 +13,9 @@ Pour programmer l'ESP32, il faut ajouter le gestionnaire de cartes spécifique d
     ```https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json```
 4.  Aller dans Outils > Type de carte > Gestionnaire de carte.
 5.  Chercher "esp32" (par Espressif Systems) et cliquer sur Installer.
-6.  Une fois installé, sélectionner la carte : Outils > Type de carte > ESP32 Dev Module.
+6.  Chercher "Adafruit NeoPixel" (par Adafruit) et cliquer sur Installer
+7.  Chercher "Adafruit DMA neopixel library" (par Adafruit) et cliquer sur Installer
+8.  Une fois installé, sélectionner la carte : Outils > Type de carte > Adafruit Feather ESP32 V2.
 
 #### B. Installation des Bibliothèques
 Le projet nécessite une bibliothèque spécifique pour le protocole MQTT.
@@ -34,7 +36,7 @@ Le capteur de température analogique LM35 est relié à l'ESP32.
 #### D. Programme Principal (Acquisition & Transmission)
 Le code suivant permet de se connecter au Wifi, de lire la température et de l'envoyer au Broker MQTT.
 
-> **Note :** Penser à modifier les constantes `ssid`, `wifi_password`, `mqtt_server` (IP du Raspberry), `mqtt_user` et `mqtt_pass` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
+> **Note :** Penser à modifier les constantes `ton_wifi`, `ton_mdp_wifi`, `mqtt_server` (IP du Raspberry), `ton_username` et `ton_password` et à changer le nom du topic L70 dans la commande "client.publish" avant de téléverser.
 
 
 <details>
@@ -44,77 +46,93 @@ Le code suivant permet de se connecter au Wifi, de lire la température et de l'
 #include <WiFi.h>
 #include <PubSubClient.h>
 
-// --- CONFIGURATION DU RÉSEAU ---
-const char* ssid = "VOTRE_SSID_WIFI";
-const char* wifi_password = "VOTRE_MOT_DE_PASSE";
+// --- CONFIGURATION ---
+const char* ssid = "ton_wifi";
+const char* password = "ton_mdp_wifi";
+const char* mqtt_server = "192.168.1.XXX"; //remplacer XXX par l'adress ip de ton Raspberry
+const int mqtt_port = 1883;
 
-// --- CONFIGURATION MQTT ---
-const char* mqtt_server = "192.168.1.XXX";    // IP du Raspberry Pi 
-const int mqtt_port = 1883;                   // Port standard 
-const char* mqtt_user = "warren2";            // User défini sur le Pi 
-const char* mqtt_pass = "warren";             // Password défini sur le Pi 
+// --- VARIABLES GLOBALES ---
+float seuilTemperature = 0.0; // Valeur par défaut
+const int sensorPin = 33;      // Pin du capteur LM35
+#define VBATPIN 35             // Pin batterie 
+#define RGB_BRIGHTNESS 64 
 
-// --- PINS ---
-const int sensorPin = 32;// Entrée analogique du LM35
 WiFiClient espClient;
 PubSubClient client(espClient);
+unsigned long lastMsg = 0;
 
 void setup_wifi() {
-  delay(10);
-  Serial.println();
-  Serial.print("Connexion au WiFi : ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, wifi_password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  rgbLedWrite(RGB_BUILTIN, 0, 0, RGB_BRIGHTNESS); // Bleu = Connecté
+}
+
+// --- RÉCEPTION DES MESSAGES ---
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) { message += (char)payload[i]; }
+
+  // Cas 1 : Réception du nouveau seuil
+  if (String(topic) == "station/seuil") {
+    seuilTemperature = message.toFloat();
+    Serial.print("Nouveau seuil reçu : ");
+    Serial.println(seuilTemperature);
+    
+    // Petit flash blanc pour confirmer la réception
+    rgbLedWrite(RGB_BUILTIN, 255, 255, 255);
+    delay(100);
+    rgbLedWrite(RGB_BUILTIN, 0, 0, 0);
   }
-  Serial.println("\nWiFi Connecté !");
-  Serial.print("Adresse IP : ");
-  Serial.println(WiFi.localIP());
 }
 
 void reconnect() {
   while (!client.connected()) {
-    Serial.print("Connexion au Broker MQTT...");
-    if (client.connect("ESP32Client", mqtt_user, mqtt_pass)) {
-      Serial.println("Connecté !");
+    if (client.connect("ESP32_Ronan", "ton_username", "ton_password")) {
+      // S'abonner aux ordres de Node-RED
+      client.subscribe("station/led");
+      client.subscribe("station/seuil"); 
     } else {
-      Serial.print("Erreur, rc=");
-      Serial.print(client.state());
       delay(5000);
     }
   }
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   setup_wifi();
-  client.setServer(mqtt_server, mqtt_port); 
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
+  if (!client.connected()) { reconnect(); }
   client.loop();
 
-  // Lecture du capteur LM35
-  int raw = analogRead(sensorPin);// 
-  
-  // Conversion en tension (3.3V référence, 4095 résolution 12-bit)
-  float millivolts = (raw / 4095.0) * 3300.0;// 
-  
-  // Conversion en degrés (10mV = 1°C pour le LM35)
-  float temperature = (millivolts / 10.0);
+  unsigned long now = millis();
+  if (now - lastMsg > 1000) {
+    lastMsg = now;
 
-  // Envoi MQTT
-  String payload = String(temperature);
-  client.publish("test_topic", payload.c_str());
+    // 1. Lectures LM35 et Batterie 
+    float temp = ((analogRead(sensorPin) / 4095.0) * 3300.0) / 4.7; // le 4,7 correspond à un coefficient qui permet d'avoir la bonne température
+    float vbat = (analogReadMilliVolts(VBATPIN) * 2.0) / 1000.0;
 
-  delay(10000); // Pause de 10 secondes
+    // 2. Alerte locale avec la LED RGB
+    if (temp > seuilTemperature) {
+      rgbLedWrite(RGB_BUILTIN, RGB_BRIGHTNESS, 0, 0); // ROUGE si dépassement
+    } else {
+      rgbLedWrite(RGB_BUILTIN, 0, RGB_BRIGHTNESS, 0); // VERT si OK
+    }
+
+    // 3. Envoi des données vers Node-RED
+    String payload = String(temp) + "," + String(vbat);
+    client.publish("ton_topic", payload.c_str());
+  }
 }
 ```
+
+</details>
+
 ## Configuration du Broker MQTT (Raspberry Pi)
 
 Le Raspberry Pi héberge le Broker Mosquitto. C'est le serveur central qui va recevoir les mesures de l'ESP32 et les redistribuer à l'interface graphique.
@@ -150,8 +168,6 @@ Supprimez le contenu existant et remplacez-le par la configuration suivante :
     allow_anonymous false 
     password_file etc/mosquitto/pwfile
     ```
-
-</details>
 
 Sauvegardez le fichier (`CTRL+O`, `Entrée`) et quittez (`CTRL+X`).
 
