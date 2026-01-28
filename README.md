@@ -1,71 +1,72 @@
-# 🌡️ Station Météo IoT Sécurisée (ESP32 + MQTT SSL + Node-RED)
+##  Détail des Blocs Node-RED
 
-Ce projet implémente une station de surveillance de température connectée, robuste et sécurisée. L'objectif est de récupérer des données capteurs, de les transmettre de manière chiffrée (TLS/SSL) à un serveur central, et de les visualiser en temps réel.
+Ce projet Node-RED est composé de plusieurs nœuds interconnectés. Voici l'explication technique et fonctionnelle de chaque bloc, classée par fonction.
 
-## 📋 Architecture du Projet
+### 1.  Zone de Réception et Affichage (Entrées)
 
-```mermaid
-graph LR
-    %% Définition des nœuds (Les boîtes)
-    LM35((Capteur LM35))
-    ESP32[Microcontrôleur ESP32]
-    WIFI((Routeur Wi-Fi))
-    RPI[Raspberry Pi 4<br/>Mosquitto + Node-RED]
-    DASH[Interface Dashboard]
+Cette partie gère l'arrivée des données brutes venant de l'ESP32 et leur visualisation.
 
-    %% Définition des liens (Les flèches)
-    LM35 -- Signal Analogique<br/>(mV) --> ESP32
-    ESP32 -- MQTT Sécurisé (SSL)<br/>Port 8883 --> WIFI
-    WIFI -- Réseau Local --> RPI
-    RPI -- WebSocket --> DASH
+####  Nœud `mqtt in` (Nom : "Réception ESP32")
+* **Type :** Entrée MQTT.
+* **Fonction :** Il s'abonne au topic `test_topic` sur le Broker local (Mosquitto). Il agit comme une "oreille" qui écoute en permanence les messages envoyés par l'ESP32.
+* **Données reçues :** Une chaîne de caractères contenant la température (ex: `"24.5"` ou `"24.5,4.1"`).
 
-    %% Styles (Pour faire joli - Optionnel)
-    style LM35 fill:#f9f,stroke:#333,stroke-width:2px
-    style ESP32 fill:#bbf,stroke:#333,stroke-width:2px
-    style RPI fill:#bfb,stroke:#333,stroke-width:2px
-```
-Le système repose sur une architecture MQTT distribuée :
-1.  **Capteur (Edge) :** ESP32 + LM35 (Lecture analogique).
-2.  **Transport :** Wi-Fi + MQTT via **TLS/SSL (Port 8883)**.
-3.  **Broker (Serveur) :** Mosquitto tournant sur un Raspberry Pi 4.
-4.  **Visualisation :** Node-RED (Dashboard).
+####  Nœud `ui_gauge` (Nom : "Jauge Temps Réel")
+* **Type :** Dashboard Gauge.
+* **Fonction :** Affiche la dernière valeur reçue sous forme de cadran (compteur de vitesse).
+* **Configuration :** Plage de 0 à 35°C. Les couleurs (Vert/Jaune/Rouge) changent automatiquement selon la température.
 
-## 🛠️ Matériel Utilisé
-
-* **Microcontrôleur :** ESP32 DevKit V1.
-* **Capteur :** LM35 (Capteur de température ).
-* **Serveur :** Raspberry Pi 4 (OS : Raspberry Pi OS).
-* **Réseau :** Wi-Fi Local (LAN).
-
-## 🔐 Sécurité & Fiabilité (Points Clés)
-
-Ce projet met en œuvre des protocoles de sécurité avancés souvent absents des projets IoT basiques :
-
-* **Chiffrement SSL/TLS :** Toutes les communications entre l'ESP32 et le Raspberry Pi sont chiffrées. Les données ne circulent jamais en clair.
-* **Autorité de Certification (CA) Privée :** Création d'une infrastructure à clé publique (PKI) locale avec OpenSSL.
-* **Authentification :** Connexion MQTT protégée par identifiant et mot de passe.
-* **Persistance (Retain) :** Le broker garde en mémoire la dernière mesure. En cas de redémarrage de l'interface, la donnée s'affiche immédiatement.
-* **Reprise Automatique (Recovery) :** L'ESP32 gère automatiquement les déconnexions Wi-Fi ou MQTT.
+####  Nœud `ui_chart` (Nom : "Graphique Historique")
+* **Type :** Dashboard Chart.
+* **Fonction :** Trace une courbe évolutive de la température en fonction du temps.
+* **Utilité :** Permet de visualiser les tendances (chauffage ou refroidissement) sur les dernières minutes/heures.
 
 ---
 
-## 🚀 Installation et Configuration
+### 2.  Zone de Logique et Alertes (Traitement)
 
-### 1. Configuration du Serveur (Raspberry Pi)
+C'est le "cerveau" du flux. Il analyse les données pour décider si une alerte doit être envoyée.
 
-Nous avons transformé le Raspberry Pi en Autorité de Certification (CA).
+####  Nœud `function` (Nom : "Comparaison & Alerte")
+* **Type :** Script JavaScript.
+* **Fonction :** C'est ici que l'intelligence réside. Ce bloc exécute trois actions :
+    1.  **Nettoyage :** Il convertit le message reçu en texte et le découpe (si format "temp,batterie").
+    2.  **Comparaison :** Il récupère la valeur du seuil (réglée par le curseur) depuis la mémoire de Node-RED (`flow.get`) et la compare à la température actuelle.
+    3.  **Formatage :** Si `Température > Seuil`, il crée un message JSON formaté spécifiquement pour l'API de Discord.
 
-**Commandes OpenSSL utilisées :**
-```bash
-# 1. Création de l'Autorité (CA)
-openssl req -new -x509 -days 3650 -extensions v3_ca -keyout ca.key -out ca.crt
+####  Nœud `http request` (Nom : "Envoi Discord")
+* **Type :** Sortie HTTP (POST).
+* **Fonction :** Il envoie le message JSON généré par le bloc précédent vers le serveur Discord via un **Webhook**.
+* **Rôle :** Agit comme le facteur qui livre l'alerte sur votre téléphone/PC.
 
-# 2. Création de la clé serveur
-openssl genrsa -out server.key 2048
+---
 
-# 3. Création de la demande de signature (CSR)
-# IMPORTANT : Le Common Name (CN) DOIT être l'IP du Raspberry (ex: 192.168.1.125)
-openssl req -new -out server.csr -key server.key
+### 3.  Zone de Contrôle (Commandes)
 
-# 4. Signature du certificat par notre CA
-openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
+Cette partie permet à l'utilisateur d'agir sur le système depuis l'interface graphique.
+
+####  Nœud `ui_slider` (Nom : "Curseur Seuil")
+* **Type :** Dashboard Slider.
+* **Fonction :** Un curseur glissière sur l'interface web qui permet de choisir une température critique (entre 0°C et 30°C).
+* **Comportement :** Dès qu'on le bouge, il envoie la nouvelle valeur à deux endroits : vers la mémoire interne et vers l'ESP32.
+
+####  Nœud `function` (Nom : "Stockage Seuil")
+* **Type :** Script JavaScript.
+* **Fonction :** Sauvegarde la valeur choisie sur le curseur dans une variable globale (`flow.set('seuil_critique', ...)`).
+* **Pourquoi ?** Pour que le bloc d'alerte (voir plus haut) puisse connaître le seuil actuel même si l'utilisateur ne touche pas au curseur à ce moment-là.
+
+####  Nœud `mqtt out` (Topic : "station/seuil")
+* **Type :** Sortie MQTT.
+* **Fonction :** Publie la valeur du curseur sur le réseau.
+* **Destinataire :** L'ESP32 est abonné à ce topic. Quand il reçoit ce message, il met à jour sa propre variable seuil pour allumer sa LED en rouge localement.
+
+---
+
+### 4.  Zone de Débogage
+
+Ces blocs ne sont pas visibles par l'utilisateur final mais servent au développeur.
+
+####  Nœud `debug` (Nom : "Vérif Debug")
+* **Type :** Sortie Console.
+* **Fonction :** Affiche les messages bruts dans la barre latérale droite de l'éditeur Node-RED.
+* **Utilité :** Permet de vérifier si l'ESP32 envoie bien des données ou si le format est correct sans avoir à regarder le Dashboard.
