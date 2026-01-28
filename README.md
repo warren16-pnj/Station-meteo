@@ -71,3 +71,5 @@ Ces blocs ne sont pas visibles par l'utilisateur final mais servent au développ
 * **Type :** Sortie Console.
 * **Fonction :** Affiche les messages bruts dans la barre latérale droite de l'éditeur Node-RED.
 * **Utilité :** Permet de vérifier si l'ESP32 envoie bien des données ou si le format est correct sans avoir à regarder le Dashboard.
+
+---
