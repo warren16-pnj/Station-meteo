@@ -206,6 +206,7 @@ Installer SQLite :
 ```bash
 sudo apt update
 sudo apt install sqlite3
+sudo apt install python3-paho-mqtt
 ```
 
 Pour rentrer dans la console SQLite :
