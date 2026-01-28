@@ -1,6 +1,7 @@
 ##  Détail des Blocs Node-RED
 
 Ce projet Node-RED est composé de plusieurs nœuds interconnectés. Voici l'explication technique et fonctionnelle de chaque bloc, classée par fonction.
+![Node-RED](images/Node-RED.png)
 
 ### 1.  Zone de Réception et Affichage (Entrées)
 
