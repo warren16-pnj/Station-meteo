@@ -45,4 +45,7 @@ Le système repose sur une architecture MQTT distribuée :
 * **Réseau :** Wi-Fi Local (LAN).
 
 
----
+## Enregistrement des données
+
+Nous avons utilisé SQLite pour enregistrer les mesures de température dans un base de données. 
+Pour faciliter le traitement et l'analyse de ces données, nous les avons converties en fichier csv, disponible dans les fichiers de ce projet GitHub (Base_de_données.csv).
