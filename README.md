@@ -133,6 +133,8 @@ void loop() {
 
 </details>
 
+---
+
 ## Configuration du Broker MQTT (Raspberry Pi)
 
 Le Raspberry Pi héberge le Broker Mosquitto. C'est le serveur central qui va recevoir les mesures de l'ESP32 et les redistribuer à l'interface graphique.
@@ -287,12 +289,29 @@ Pour récupérer les données et faciliter leur exploitation, on convertit la ba
 sqlite3 -header -csv temperature.db "SELECT * FROM mesures;" > mesures_export.csv
 ```
 
+---
 
 ## Interface et Logique (Node-RED)
 
 Node-RED est utilisé pour l'interface graphique (Dashboard) et la logique d'alerte. Il s'exécute sur le Raspberry Pi et communique avec l'ESP32 via le protocole MQTT.
 
 ### 1. Installation des dépendances
+Si ce n'est pas déjà fait sur le Raspberry Pi :
+1.  **Installer Node-RED :**
+    `bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)`
+2.  **Lancer le service :**
+    `sudo systemctl start nodered`
+3.  Cliquer sur le lien pour accéder à une page web avec node-red
+
+Si vous souhaitez utiliser Node-RED sur votre pc : 
+1. **Site web :**
+   `https://nodejs.org/en/download`
+2. **Installer Node-RED :**
+   Cliquer sur `Windows installer (.msi)` ou `macOS installer (.pkg)`
+3. **Lancer Node-RED :**
+   Ouvrir un terminale de commande et taper :
+   `node-red` puis cliquer sur le lien et une page web avec node red s'ouvre
+   
 Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans **Menu > Manage Palette > Install** et installez :
 * `node-red-dashboard`
 
@@ -641,7 +660,61 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
 ```
 
 </details>
-    
+
+Pour ouvrir le dashboard il suffit de taper `http:<ADRESSE_IP_DU_RASPBERRY>:1880/ui`
+
+---
+
+## Configuration des Alertes Discord
+
+Ce projet utilise le système de **Webhooks** de Discord. C'est une méthode simple qui permet au Raspberry Pi d'envoyer des messages dans un salon de discussion sans avoir besoin de créer un "Bot" complexe.
+
+### Étape 1 : Création du Webhook (Sur Discord)
+
+1.  **Choisir le salon :**
+    * Allez sur votre serveur Discord.
+    * Repérez le salon textuel où vous voulez recevoir les alertes (exemple : `#général` ou créez un salon `#alertes-iot`).
+    * Cliquez sur la roue dentée **⚙️ (Modifier le salon)** à côté du nom du salon.
+
+2.  **Accéder aux Intégrations :**
+    * Dans le menu de gauche, cliquez sur **Intégrations**.
+    * Cliquez sur le bouton **Webhooks**.
+
+3.  **Générer l'URL :**
+    * Cliquez sur **Nouveau Webhook**.
+    * Donnez-lui un nom (ex: *Capteur IUT*).
+    * *(Optionnel)* Changez son avatar.
+    * ⚠️ **IMPORTANT :** Cliquez sur le bouton **Copier l'URL du Webhook**.
+    * *Gardez cette URL secrète, elle ressemble à : `https://discord.com/api/webhooks/12345.../AbCdEf...`*
+    * Cliquez sur **Enregistrer**.
+
+### Étape 2 : Connexion avec Node-RED
+
+Maintenant que vous avez votre "adresse de livraison" (l'URL), il faut la donner à Node-RED.
+
+1.  Ouvrez l'interface de Node-RED (`http://<IP_RASPBERRY>:1880`).
+2.  Localisez le nœud de type `http request` (souvent de couleur jaune) nommé **"Envoi Discord"**.
+3.  Double-cliquez dessus pour l'ouvrir.
+4.  Dans le champ **URL**, effacez le contenu existant.
+5.  **Collez** l'URL du Webhook que vous avez copiée à l'étape 1.
+6.  Vérifiez que la **Method** est bien réglée sur `POST`.
+7.  Cliquez sur **Done** (Terminé).
+8.  N'oubliez pas de cliquer sur le bouton rouge **Deploy** en haut à droite pour valider les changements.
+
+### Étape 3 : Tester l'Alerte
+
+Pour vérifier que tout fonctionne sans attendre une canicule :
+
+1.  Ouvrez votre **Dashboard** (`http://<IP_RASPBERRY>:1880/ui`).
+2.  Repérez la température actuelle affichée par la jauge (ex: 22°C).
+3.  Descendez le **Curseur Seuil** en dessous de cette valeur (ex: réglez-le à 15°C).
+4.  Attendez la prochaine remontée de données de l'ESP32 (environ 10 secondes).
+5.  **Résultat :**
+    * La LED de l'ESP32 doit passer au **Rouge**.
+    * Vous devez recevoir instantanément une notification sur **Discord** avec le message d'alerte.
+
+---
+
 ## Dépannage et Solutions (Troubleshooting)
 
 Si le système ne fonctionne pas comme prévu, voici une liste de contrôle pour diagnostiquer et résoudre les problèmes les plus fréquents.
