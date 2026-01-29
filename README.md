@@ -307,29 +307,25 @@ Si vous souhaitez utiliser Node-RED sur votre pc :
 2. **Installer Node-RED :**
    Cliquer sur `Windows installer (.msi)` ou `macOS installer (.pkg)`
 3. **Lancer Node-RED :**
-   Ouvrir un terminale de commande et copier la commande suivante :
+   Ouvrir un terminale de commande et copier la commande suivante : (Pour les macs)
    
 <details>
 <summary> Cliquez ici pour voir la commande d'installation </summary>  
     
-# Download and install nvm:
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-
-# in lieu of restarting the shell
-\. "$HOME/.nvm/nvm.sh"
-
-# Download and install Node.js:
-nvm install 24
-
-# Verify the Node.js version:
-node -v # Should print "v24.13.0".
-
-# Verify npm version:
-npm -v # Should print "11.6.2".
+* Download and install nvm:
+`curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash`
+* in lieu of restarting the shell :
+`\. "$HOME/.nvm/nvm.sh"`
+* Download and install Node.js :
+`nvm install 24`
+* Verify the Node.js version :
+`node -v # Should print "v24.13.0".`
+* Verify npm version :
+`npm -v # Should print "11.6.2".`
 
 </details>
 
-Ensuite, il suffit d'écrire `node-red` dans le terminal puis de cliquer sur le lien et une page web avec Node-RED s'ouvre.
+Pour les windows, il suffit d'écrire `node-red` dans le terminal puis de cliquer sur le lien et une page web avec Node-RED s'ouvre.
    
 Le flux nécessite le module de tableau de bord. Dans Node-RED, allez dans Menu (3 barres) > Manage Palette > Install et installez :
 * `node-red-dashboard`
