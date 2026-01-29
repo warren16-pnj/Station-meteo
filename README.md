@@ -676,6 +676,7 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
 
 </details>
 
+Il est possible de modifier les températures min et max affichée sur le graphique ainsi que sur la jauge en double cliquant sur le nœud.
 Pour ouvrir le dashboard il suffit d'ouvrir une nouvelle page dans son navigateur : `http:<ADRESSE_IP_DU_RASPBERRY>:1880/ui`
 
 ### 4. Alertes et automatisation
