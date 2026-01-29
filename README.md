@@ -20,9 +20,9 @@ graph LR
 
     %% Définition des liens 
     LM35 -- Signal Analogique<br/>(mV) --> ESP32
-    ESP32 -- MQTT Sécurisé (SSL)<br/>Port 8883 --> WIFI
+    ESP32 -- MQTT Sécurisé <br/>Port 1883 --> WIFI
     WIFI -- Réseau Local --> RPI
-    RPI --> DASH
+    RPI --> DASHBOARD
     RPI --> SQL
 
     %% Styles 
