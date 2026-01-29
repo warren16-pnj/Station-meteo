@@ -416,8 +416,8 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
         "interpolate": "linear",
         "nodata": "",
         "dot": false,
-        "ymin": "0",
-        "ymax": "35",
+        "ymin": "10",
+        "ymax": "30",
         "removeOlder": "10",
         "removeOlderPoints": "",
         "removeOlderUnit": "60",
@@ -486,7 +486,7 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
         "type": "function",
         "z": "9430e1768d7b09cf",
         "name": "Comparaison & Alerte",
-        "func": "// 1. Découpage du message combiné de l'ESP32 (\"temp,vbat\")\nvar values = msg.payload.split(',');\nvar temp = parseFloat(values[0]); // La température est la première valeur\n\n// 2. Récupération du seuil mémorisé (30 par défaut si le curseur n'a pas bougé)\nvar seuil = flow.get('seuil_critique') || 10;\n\n// 3. Logique d'alerte\nif (temp > seuil) {\n    msg.payload = {\n        \"content\": \"\\n\" +\n                    \"Le capteur détecte une surchauffe !\\n\" +\n                    \"**Température :** \" + temp + \"°C\\n\" +\n                    \"**Seuil défini :** \" + seuil + \"°C\"\n    };\n    msg.headers = { \"content-type\": \"application/json\" };\n    return msg;\n}\n\n// Si la température est inférieure au seuil, on ne fait rien\nreturn null;",
+        "func": "// 1. Découpage du message combiné de l'ESP32 (\"temp,vbat\")\nvar values = msg.payload.split(',');\nvar temp = parseFloat(values[0]); // La température est la première valeur\n\n// 2. Récupération du seuil mémorisé (30 par défaut si le curseur n'a pas bougé)\nvar seuil = flow.get('seuil_critique') || 10;\n\n// 3. Logique d'alerte\nif (temp > seuil) {\n    msg.payload = {\n        \"content\": \"\\n\" +\n                   \"Le capteur détecte une surchauffe !\\n\" +\n                   \"**Température :** \" + temp + \"°C\\n\" +\n                   \"**Seuil défini :** \" + seuil + \"°C\"\n    };\n    msg.headers = { \"content-type\": \"application/json\" };\n    return msg;\n}\n\n// Si la température est inférieure au seuil, on ne fait rien\nreturn null;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -509,7 +509,7 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
         "method": "POST",
         "ret": "txt",
         "paytoqs": "ignore",
-        "url": "YOUR_DISCORD_WEBHOOK_URL_HERE",
+        "url": "https://discord.com/api/webhooks/1463816345618616465/5yeoTBd7lCXpfBpflFKkEiOnApVNg7CqFjQSfJexRT98lIg6BO6UFmLYccVb0EwQFjs7",
         "tls": "90ec97b54df48d65",
         "persist": false,
         "proxy": "",
@@ -544,8 +544,8 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
         "className": "",
         "x": 140,
         "y": 400,
-        "wires":
-[
+        "wires": [
+            [
                 "17f3cbfa04924cb9",
                 "972fdf71517f7e43"
             ]
@@ -668,7 +668,7 @@ Pour reproduire l'interface complète, copiez le code JSON ci-dessous et importe
         "hidden": false
     },
     {
-        "id": "9613c65dea701f14",
+        "id": "376ea541b3a37177",
         "type": "global-config",
         "env": [],
         "modules": {
